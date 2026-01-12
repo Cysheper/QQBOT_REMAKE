@@ -10,12 +10,9 @@ class QQ():
     def __init__(
             self,
             QQ_API_BASE: str,
-            QQ_NUMBER: int,
         ) -> None:
-        self.base: str = QQ_API_BASE
-        if QQ_NUMBER:
-            self.qq_number: int = QQ_NUMBER
-        else: self.qq_number: int = self.getSelfQQNumber()
+        self.base: str=QQ_API_BASE
+        self.qq_number: int=self.getSelfQQNumber()
 
     def getSelfQQNumber(self) -> int:
         url = f"{self.base}/get_login_info"
@@ -33,13 +30,29 @@ class QQ():
         data = response.json().get("data", {})
         return data.get("nickname", "未知用户")
     
-    def postMessage(self, group_id: int, message: str) -> Status:
+    def postMessage(self, group_id: int, message: str, at: str | None=None) -> Status:
         payload = {
             "group_id": group_id,
-            "message": f"{message}",
+            "message": [
+                {
+                    "type": "text",
+                    "data": {
+                        "text": message
+                    }
+                }
+            ]
         }
+        if at is not None:
+            payload["message"].append(
+                {
+                    "type": "at",
+                    "data": {
+                        "qq": at
+                    }
+                }
+            )
         try:
-            info = requests.post(f"{self.base}/send_group_msg", data=payload).json()
+            info = requests.post(f"{self.base}/send_group_msg", json=payload).json()
 
             if info["status"] == "ok":
                 return Status(code="ok", message="[Accepted] Post Message Success")

@@ -3,8 +3,10 @@ from pydantic import BaseModel
 
 class Message(BaseModel):
     sender_name: str
+    sender_qq: int
     content: str
     group_id: int
+    send_time: int
      
 
 from typing import Literal

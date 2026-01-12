@@ -5,12 +5,17 @@ from Images.Images import Image
 from AI.chat import AI
 import os
 import json
+import time
+import random
+import datetime
+from queue import Queue
+from threading import Thread, Lock
+
 
 class QQBot:
     def __init__(
             self,
             QQ_API_BASE: str,
-            QQ_NUMBER: int,
             AI_MODEL: str = "deepseek-chat",
             AI_API_KEY: str = "sk-0b936cb262ca45718cdfe61352c83038",
             AI_API_BASE: str = "https://api.deepseek.com",
@@ -19,7 +24,6 @@ class QQBot:
         self.image = Image()
         self.qq = QQ(
             QQ_API_BASE=QQ_API_BASE,
-            QQ_NUMBER=QQ_NUMBER
         )
         self.ai = AI(
             base_url=AI_API_BASE,
@@ -27,16 +31,29 @@ class QQBot:
             model=AI_MODEL,
             charactor_mod=AI_CHARACTOR
         )
+        self.message_queue: Queue[Message] = Queue()
+
+        router_thread: Thread = Thread(target=self.task, daemon=True)
+        router_thread.start()
 
 
     def run(self, data: dict[Any, Any]) -> None:
         message: Message | None = self.clean(data)
         if message:
-            print(f"[{message.sender_name}]: {message.content}")
-            self.router(message)
-
-
+            print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(message.send_time))} [{message.sender_name}]: {message.content}")
+            self.message_queue.put(message)
         else: return None
+
+    def task(self) -> None:
+        while True:
+            if not self.message_queue.empty():
+                message: Message = self.message_queue.get()
+                try:
+                    self.router(message)
+                except Exception as e:
+                    print("处理消息时发生错误: ", str(e))
+            else:
+                time.sleep(1)
 
     def router(self, message: Message) -> None:
         if message.content[:2] == "来只":
@@ -55,18 +72,26 @@ class QQBot:
                 print("发送图片列表失败: ", respose.message)
             
         else:
+            return
             respond: Status = self.ai.chat(message.content)
             try:
                 data = json.loads(respond.message)
                 if data['is_pass']:
                     return
-                for msg in data['messages']:
+                if int(time.time()) - int(message.send_time) > 5:
+                    status: Status = self.qq.postMessage(message.group_id, data['messages'][0] + " ", at=str(message.sender_qq))
+                else:
+                    status: Status = self.qq.postMessage(message.group_id, data['messages'][0])
+                time.sleep(random.randint(2, 7))
+                for msg in data['messages'][1:]:
                     status: Status = self.qq.postMessage(message.group_id, msg)
-                    if status.code != "ok":
-                        print("发送AI回复失败: ", status.message)
+                    time.sleep(random.randint(2, 7))
+                if status.code != "ok":
+                    print("发送AI回复失败: ", status.message)
+                    
                 
             except Exception as e:
-                print("解析AI回复失败: ", e)
+                print("解析AI回复失败: ", str(e))
                 status: Status = self.qq.postMessage(message.group_id, respond.message)
 
 
@@ -93,12 +118,40 @@ class QQBot:
             elif msg['type'] == 'at':
                 message += f"@{self.qq.getQQUserName(int(msg['data']['qq']))} "
             elif msg['type'] == 'image':
-                message += "[图片]"
+                message += "[图片消息 " + msg['data']['summary'] + "] 这张图片的描述是: "
+                url = msg['data'].get('url', '')
+                if msg['data']['summary'] == "[动画表情]":
+                    discription = self.ai.get_image_info(url, "这是一个表情包，请简要描述表情包的内容和情绪。")
+                else:
+                    discription = self.ai.get_image_info(url, "请简要描述这张图片的内容。")
+                if discription.code == "ok":
+                    message += discription.message
+                else:
+                    message += "[图片描述获取失败]"
+                    print("获取图片描述失败: ", discription.message)
+                
             else:
                 message += f"[未知消息类型:{msg['type']}]"
         
         return Message(
             sender_name=data['sender']['nickname'],
+            sender_qq=data['sender']['user_id'],
             content=message,
-            group_id=data['group_id']
+            group_id=data['group_id'],
+            send_time=int(time.time())
         )
+    
+
+    def test(self, AI_prompt: str="你好", AI_charactor: str = "default") -> None:
+        print("QQBot 测试中...")
+        print(f"QQ API 地址: {self.qq.base}")
+        print(f"QQ 账号: {self.qq.qq_number} - {self.qq.getQQUserName(self.qq.qq_number)}")
+        ai_test: Status = self.ai.test_chat(AI_prompt, AI_charactor)
+        if ai_test.code == "ok":
+            print("AI 测试成功!")
+            print(f"AI 回复: {ai_test.message}")
+        else:
+            print("AI 测试失败!")
+            print(f"错误信息: {ai_test.message}")
+            raise Exception("AI 测试失败")
+        print("测试完成.")
