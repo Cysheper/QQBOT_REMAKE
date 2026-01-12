@@ -26,5 +26,5 @@ def receive_qq(payload: dict[Any, Any]):
 
 
 if __name__ == "__main__":
-    # qqbot.test()
+    qqbot.test()
     uvicorn.run("main:app", host="0.0.0.0", port=PORT, reload=True)

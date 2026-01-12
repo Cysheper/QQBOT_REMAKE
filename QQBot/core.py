@@ -9,7 +9,7 @@ import time
 import random
 import datetime
 from queue import Queue
-from threading import Thread, Lock
+from threading import Thread
 
 
 class QQBot:
@@ -32,6 +32,7 @@ class QQBot:
             charactor_mod=AI_CHARACTOR
         )
         self.message_queue: Queue[Message] = Queue()
+        self.speak: bool = False
 
         router_thread: Thread = Thread(target=self.task, daemon=True)
         router_thread.start()
@@ -70,8 +71,35 @@ class QQBot:
             respose : Status = self.qq.postMessage(message.group_id, respond.message)
             if respose.code != "ok":
                 print("发送图片列表失败: ", respose.message)
-            
+        
+        elif message.content == "说话":
+            self.speak = True
+            status: Status = self.qq.postMessage(message.group_id, "已开启AI自动回复功能")
+            if status.code != "ok":
+                print("发送开启回复状态失败: ", status.message)
+
+        elif message.content == "闭嘴":
+            self.speak = False
+            status: Status = self.qq.postMessage(message.group_id, "已关闭AI自动回复功能")
+            if status.code != "ok":
+                print("发送关闭回复状态失败: ", status.message)
+
+        elif message.content.startswith("切换角色 "):
+            charactor = message.content[len("切换角色 "):].strip()
+            status: Status = self.ai.shift_charactor(charactor)
+            if status.code == "ok":
+                self.qq.postMessage(message.group_id, status.message)
+            else:
+                self.qq.postMessage(message.group_id, status.message)
+
+        elif message.content == "角色列表":
+            charactors: list[str] = self.ai.get_charactors_list()
+            charactor_list: str = "当前可用角色列表:\n" + "\n".join(charactors)
+            self.qq.postMessage(message.group_id, charactor_list)
+
         else:
+            if not self.speak:
+                return
             respond: Status = self.ai.chat(message.content)
             try:
                 data = json.loads(respond.message)
@@ -121,7 +149,8 @@ class QQBot:
             elif msg['type'] == 'at':
                 if msg['data']['qq'] == str(self.qq.qq_number):
                     ignore = False
-                message += f"@{self.qq.getQQUserName(int(msg['data']['qq']))} "
+                else:
+                    message += f"@{self.qq.getQQUserName(int(msg['data']['qq']))}"
                 
             elif msg['type'] == 'image':
                 message += "[图片消息 " + msg['data']['summary'] + "] 这张图片的描述是: "
@@ -138,13 +167,13 @@ class QQBot:
             else:
                 message += f"[未知消息类型:{msg['type']}]"
 
-        if ignore:
+        if ignore and self.speak == False:
             return None
         
         return Message(
             sender_name=data['sender']['nickname'],
             sender_qq=data['sender']['user_id'],
-            content=message,
+            content=message.strip(),
             group_id=data['group_id'],
             send_time=int(time.time())
         )
