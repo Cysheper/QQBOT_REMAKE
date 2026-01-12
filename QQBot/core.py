@@ -72,7 +72,6 @@ class QQBot:
                 print("发送图片列表失败: ", respose.message)
             
         else:
-            return
             respond: Status = self.ai.chat(message.content)
             try:
                 data = json.loads(respond.message)
@@ -110,13 +109,20 @@ class QQBot:
 
         message: str = str()
 
+        ignore: bool = True
+
         for msg in messages:
             if msg['type'] == 'text':
                 message += msg["data"]["text"]
+
             elif msg['type'] == 'face':
                 message += f"[表情:{msg['data']['id']}]"
+
             elif msg['type'] == 'at':
+                if msg['data']['qq'] == str(self.qq.qq_number):
+                    ignore = False
                 message += f"@{self.qq.getQQUserName(int(msg['data']['qq']))} "
+                
             elif msg['type'] == 'image':
                 message += "[图片消息 " + msg['data']['summary'] + "] 这张图片的描述是: "
                 url = msg['data'].get('url', '')
@@ -129,9 +135,11 @@ class QQBot:
                 else:
                     message += "[图片描述获取失败]"
                     print("获取图片描述失败: ", discription.message)
-                
             else:
                 message += f"[未知消息类型:{msg['type']}]"
+
+        if ignore:
+            return None
         
         return Message(
             sender_name=data['sender']['nickname'],
