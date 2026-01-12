@@ -7,9 +7,15 @@ from Modules.core import Message, Status
 
 
 class QQ():
-    def __init__(self) -> None:
-        self.base: str = os.getenv("QQ_API_BASE", "http://localhost:3000")
-        self.qq_number: int = int(os.getenv("QQ_NUMBER", self.getSelfQQNumber()))
+    def __init__(
+            self,
+            QQ_API_BASE: str,
+            QQ_NUMBER: int,
+        ) -> None:
+        self.base: str = QQ_API_BASE
+        if QQ_NUMBER:
+            self.qq_number: int = QQ_NUMBER
+        else: self.qq_number: int = self.getSelfQQNumber()
 
     def getSelfQQNumber(self) -> int:
         url = f"{self.base}/get_login_info"

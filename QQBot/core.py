@@ -7,14 +7,25 @@ import os
 import json
 
 class QQBot:
-    def __init__(self) -> None:
+    def __init__(
+            self,
+            QQ_API_BASE: str,
+            QQ_NUMBER: int,
+            AI_MODEL: str = "deepseek-chat",
+            AI_API_KEY: str = "sk-0b936cb262ca45718cdfe61352c83038",
+            AI_API_BASE: str = "https://api.deepseek.com",
+            AI_CHARACTOR: str = "default"
+        ) -> None:
         self.image = Image()
-        self.qq = QQ()
+        self.qq = QQ(
+            QQ_API_BASE=QQ_API_BASE,
+            QQ_NUMBER=QQ_NUMBER
+        )
         self.ai = AI(
-            base_url=os.getenv("AI_API_BASE", "https://api.deepseek.com"),
-            api_key=os.getenv("AI_API_KEY", "sk-0b936cb262ca45718cdfe61352c83038"),
-            model=os.getenv("AI_MODEL", "deepseek-chat"),
-            charactor_mod=os.getenv("AI_CHARACTOR_MOD", "AceTaffy")
+            base_url=AI_API_BASE,
+            api_key=AI_API_KEY,
+            model=AI_MODEL,
+            charactor_mod=AI_CHARACTOR
         )
 
 
