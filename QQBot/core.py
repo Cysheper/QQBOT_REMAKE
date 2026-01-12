@@ -24,6 +24,7 @@ class QQBot:
         self.image = Image()
         self.qq = QQ(
             QQ_API_BASE=QQ_API_BASE,
+            TOKRN=os.getenv("QQ_API_TOKEN", "")
         )
         self.ai = AI(
             base_url=AI_API_BASE,
@@ -153,7 +154,7 @@ class QQBot:
                     message += f"@{self.qq.getQQUserName(int(msg['data']['qq']))}"
                 
             elif msg['type'] == 'image':
-                message += "[图片消息 " + msg['data']['summary'] + "] 这张图片的描述是: "
+                message += "[图片消息" + msg['data']['summary'] + "] 这张图片的描述是: "
                 url = msg['data'].get('url', '')
                 if msg['data']['summary'] == "[动画表情]":
                     discription = self.ai.get_image_info(url, "这是一个表情包，请简要描述表情包的内容和情绪。")

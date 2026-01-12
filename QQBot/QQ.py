@@ -10,13 +10,15 @@ class QQ():
     def __init__(
             self,
             QQ_API_BASE: str,
+            TOKRN: str
         ) -> None:
         self.base: str=QQ_API_BASE
+        self.token: str=TOKRN
         self.qq_number: int=self.getSelfQQNumber()
 
     def getSelfQQNumber(self) -> int:
         url = f"{self.base}/get_login_info"
-        response = requests.get(url)
+        response = requests.get(url, headers={"Authorization": self.token})
         data = response.json().get("data", {})
         return data.get("user_id")
 
@@ -25,7 +27,7 @@ class QQ():
         payload = {
             "user_id": number
         }
-        response = requests.get(url, params=payload)
+        response = requests.get(url, params=payload, headers={"Authorization": self.token})
         # print(response.json())
         data = response.json().get("data", {})
         return data.get("nickname", "未知用户")
@@ -52,7 +54,9 @@ class QQ():
                 }
             )
         try:
-            info = requests.post(f"{self.base}/send_group_msg", json=payload).json()
+            info = requests.post(f"{self.base}/send_group_msg", 
+                                 json=payload, 
+                                 headers={"Authorization": self.token}).json()
 
             if info["status"] == "ok":
                 return Status(code="ok", message="[Accepted] Post Message Success")
@@ -76,7 +80,9 @@ class QQ():
             ]
         }
         try:
-            info = requests.post(f"{self.base}/send_group_msg", json=payload, timeout=10).json()
+            info = requests.post(f"{self.base}/send_group_msg", 
+                                 json=payload, headers={"Authorization": self.token}, 
+                                 timeout=10).json()
             if info["status"] == "ok":
                 if willdel:
                     message_id = info["data"]["message_id"]
@@ -95,7 +101,10 @@ class QQ():
             data = {
                 "message_id": message_id
             }
-            response = requests.post(f"{self.base}/delete_msg", data=data).json()
+            response = requests.post(f"{self.base}/delete_msg", 
+                                     data=data,
+                                     headers={"Authorization": self.token}
+                                     ).json()
             if response["status"] == "ok":
                 return Status(code="ok", message="[Info] 图片已撤回")
             else:
